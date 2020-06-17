@@ -128,6 +128,26 @@ module.exports = function(webpackEnv) {
     return loaders;
   };
 
+  const productMinifyHtml = {
+    minify: {
+      removeComments: true,
+      collapseWhitespace: true,
+      removeRedundantAttributes: true,
+      useShortDoctype: true,
+      removeEmptyAttributes: true,
+      removeStyleLinkTypeAttributes: true,
+      keepClosingSlash: true,
+      minifyJS: true,
+      minifyCSS: true,
+      minifyURLs: true,
+    },
+  }
+
+  const index = [paths.appIndexJs, isEnvDevelopment && require.resolve('react-dev-utils/webpackHotDevClient')].filter(Boolean)
+  const query = [paths.appQueryJs, isEnvDevelopment && require.resolve('react-dev-utils/webpackHotDevClient')].filter(Boolean)
+  const ticket = [paths.appTicketJs, isEnvDevelopment && require.resolve('react-dev-utils/webpackHotDevClient')].filter(Boolean)
+  const order = [paths.appOrderJs, isEnvDevelopment && require.resolve('react-dev-utils/webpackHotDevClient')].filter(Boolean)
+
   return {
     mode: isEnvProduction ? 'production' : isEnvDevelopment && 'development',
     // Stop compilation early in production
@@ -139,25 +159,12 @@ module.exports = function(webpackEnv) {
       : isEnvDevelopment && 'cheap-module-source-map',
     // These are the "entry points" to our application.
     // This means they will be the "root" imports that are included in JS bundle.
-    entry: [
-      // Include an alternative client for WebpackDevServer. A client's job is to
-      // connect to WebpackDevServer by a socket and get notified about changes.
-      // When you save a file, the client will either apply hot updates (in case
-      // of CSS changes), or refresh the page (in case of JS changes). When you
-      // make a syntax error, this client will display a syntax error overlay.
-      // Note: instead of the default WebpackDevServer client, we use a custom one
-      // to bring better experience for Create React App users. You can replace
-      // the line below with these two lines if you prefer the stock client:
-      // require.resolve('webpack-dev-server/client') + '?/',
-      // require.resolve('webpack/hot/dev-server'),
-      isEnvDevelopment &&
-        require.resolve('react-dev-utils/webpackHotDevClient'),
-      // Finally, this is your app's code:
-      paths.appIndexJs,
-      // We include the app code last so that if there is a runtime error during
-      // initialization, it doesn't blow up the WebpackDevServer client, and
-      // changing JS code would still trigger a refresh.
-    ].filter(Boolean),
+    entry: {
+      index: index,
+      query: query,
+      ticket: ticket,
+      order: order,
+    },
     output: {
       // The build folder.
       path: isEnvProduction ? paths.appBuild : undefined,
@@ -167,7 +174,7 @@ module.exports = function(webpackEnv) {
       // In development, it does not produce real files.
       filename: isEnvProduction
         ? 'static/js/[name].[contenthash:8].js'
-        : isEnvDevelopment && 'static/js/bundle.js',
+        : isEnvDevelopment && 'static/js/[name].js',
       // TODO: remove this when upgrading to webpack 5
       futureEmitAssets: true,
       // There are also additional JS chunk files if you use code splitting.
@@ -336,7 +343,7 @@ module.exports = function(webpackEnv) {
                 formatter: require.resolve('react-dev-utils/eslintFormatter'),
                 eslintPath: require.resolve('eslint'),
                 resolvePluginsRelativeTo: __dirname,
-                
+
               },
               loader: require.resolve('eslint-loader'),
             },
@@ -369,7 +376,7 @@ module.exports = function(webpackEnv) {
                 customize: require.resolve(
                   'babel-preset-react-app/webpack-overrides'
                 ),
-                
+
                 plugins: [
                   [
                     require.resolve('babel-plugin-named-asset-import'),
@@ -411,7 +418,7 @@ module.exports = function(webpackEnv) {
                 cacheDirectory: true,
                 // See #6846 for context on why cacheCompression is disabled
                 cacheCompression: false,
-                
+
                 // Babel sourcemaps are needed for debugging into node_modules
                 // code.  Without the options below, debuggers like VSCode
                 // show incorrect code and set breakpoints on the wrong lines.
@@ -511,27 +518,26 @@ module.exports = function(webpackEnv) {
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(
         Object.assign(
-          {},
-          {
-            inject: true,
-            template: paths.appHtml,
-          },
-          isEnvProduction
-            ? {
-                minify: {
-                  removeComments: true,
-                  collapseWhitespace: true,
-                  removeRedundantAttributes: true,
-                  useShortDoctype: true,
-                  removeEmptyAttributes: true,
-                  removeStyleLinkTypeAttributes: true,
-                  keepClosingSlash: true,
-                  minifyJS: true,
-                  minifyCSS: true,
-                  minifyURLs: true,
-                },
-              }
-            : undefined
+          {}, { inject: true, filename: 'index.html', template: paths.appHtml, chunks: ['index']},
+          isEnvProduction ? productMinifyHtml : undefined
+        )
+      ),
+      new HtmlWebpackPlugin(
+        Object.assign(
+          {}, { inject: true, filename: 'order.html', template: paths.appHtml, chunks: ['order']},
+          isEnvProduction ? productMinifyHtml : undefined
+        )
+      ),
+      new HtmlWebpackPlugin(
+        Object.assign(
+          {}, { inject: true, filename: 'query.html', template: paths.appHtml, chunks: ['query']},
+          isEnvProduction ? productMinifyHtml : undefined
+        )
+      ),
+      new HtmlWebpackPlugin(
+        Object.assign(
+          {}, { inject: true, filename: 'ticket.html', template: paths.appHtml, chunks: ['ticket']},
+          isEnvProduction ? productMinifyHtml : undefined
         )
       ),
       // Inlines the webpack runtime script. This script is too small to warrant
@@ -588,10 +594,18 @@ module.exports = function(webpackEnv) {
             manifest[file.name] = file.path;
             return manifest;
           }, seed);
-          const entrypointFiles = entrypoints.main.filter(
-            fileName => !fileName.endsWith('.map')
-          );
 
+          const entrypointFiles = {
+            index: entrypoints.index.filter(fileName => !fileName.endsWith('.map')),
+            query: entrypoints.query.filter(fileName => !fileName.endsWith('.map')),
+            order: entrypoints.order.filter(fileName => !fileName.endsWith('.map')),
+            ticket: entrypoints.ticket.filter(fileName => !fileName.endsWith('.map')),
+          }
+          /*const entrypointFiles = entrypoints.index.filter(fileName => !fileName.endsWith('.map'))
+              .concat(entrypoints.query.filter(fileName => !fileName.endsWith('.map')))
+              .concat(entrypoints.order.filter(fileName => !fileName.endsWith('.map')))
+              .concat(entrypoints.ticket.filter(fileName => !fileName.endsWith('.map')))*/
+          // console.log(entrypointFiles)
           return {
             files: manifestFiles,
             entrypoints: entrypointFiles,

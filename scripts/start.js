@@ -60,7 +60,6 @@ if (process.env.HOST) {
   );
   console.log();
 }
-
 // We require that you explicitly set browsers and do not fall back to
 // browserslist defaults.
 const { checkBrowsers } = require('react-dev-utils/browsersHelper');
@@ -93,6 +92,7 @@ checkBrowsers(paths.appPath, isInteractive)
       errors: errors =>
         devServer.sockWrite(devServer.sockets, 'errors', errors),
     };
+
     // Create a webpack compiler that is configured with custom messages.
     const compiler = createCompiler({
       appName,
@@ -164,3 +164,4 @@ checkBrowsers(paths.appPath, isInteractive)
     }
     process.exit(1);
   });
+
